@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/css/tailwind.css" rel="stylesheet">
+  <title>پنل مدیریت</title>
+  <style>
+    body {
+      height: 100vh;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body dir="rtl" class="bg-white flex flex-col items-center justify-center">
+  <div class="flex flex-col items-center text-center bg-gray-200 p-10 rounded-lg shadow-lg">
+    <h1 class="text-3xl md:text-5xl font-bold mb-10">Monolith</h1>
+    <input id="username-input" required dir="ltr" placeholder="نام کاربری" class="border-2 border-stone-400 rounded-lg p-2 text-center mb-2"/>
+    <input id="password-input" required dir="ltr" type="password" placeholder="رمز عبور" class="border-2 border-stone-400 rounded-lg p-2 text-center"/>
+    <button id="login-button" class="mt-4 px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700">ورود</button>
+  </div>
+  <div id="message-box" class="fixed top-0 right-0 w-screen h-screen items-center justify-center z-50 backdrop-blur-sm hidden">
+    <div class="flex flex-col items-start bg-gray-300 p-10 rounded-lg shadow-lg">
+      <p id="message">کلمه عبور اشتباه است</p>
+      <button id="message-ok-button" class="mt-4 px-6 py-3 bg-green-800 text-white rounded-lg hover:bg-gray-700">تایید</button>
+    </div>
+  </div>
+</body>
+<script>
+let loginButton = document.getElementById("login-button");
+let usernameInput = document.getElementById("username-input");
+let passwordInput = document.getElementById("password-input"); 
+let messageBox = document.getElementById("message-box");
+let message = document.getElementById("message");
+let messageOkButton = document.getElementById("message-ok-button");
+
+messageOkButton.addEventListener("click", () => {
+  messageBox.classList.replace("flex", "hidden");
+});
+
+loginButton.addEventListener("click", async () => {
+  let username = usernameInput.value;
+  let password = passwordInput.value;
+
+  try {
+    const response = await fetch("/api/admin/get-session/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: username,
+        password: password,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        message.innerText = "نام کاربری و یا رمز عبور اشتباه است.";
+        messageBox.classList.replace("hidden", "flex");
+        const errorData = await response.json();
+        console.error("API Error:", errorData);
+        return;
+      }
+
+      if (response.status === 500) {
+        message.innerText = "مشکلی در سمت سرور به وجود آمد.";
+        messageBox.classList.replace("hidden", "flex");
+        const errorData = await response.json();
+        console.error("API Error:", errorData);
+        return;
+      }
+
+      if (response.status === 400 || response.status === 405) {
+        message.innerText = "مشکلی در سمت پنل کاربری به وجود آمد.";
+        messageBox.classList.replace("hidden", "flex");
+        const errorData = await response.json();
+        console.error("API Error:", errorData);
+        return;
+      }
+
+      message.innerText = "مشکلی ناشناخته به وجود آمد.";
+      messageBox.classList.replace("hidden", "flex");
+      console.error("Unknown API Error");
+      return;
+    }
+    const data = await response.json();
+    console.log("API Success:", data);
+    const sessionToken = data.sessionToken;
+    const date = new Date();
+    date.setTime(date.getTime() + 7 * 24 * 60 * 60 * 1000);
+    document.cookie = `monolith_adminsession=${sessionToken}; expires=${date.toUTCString()}; path=/`;
+  } catch (err) {
+    console.error("Request failed:", err.message);
+  }
+});
+</script>
+</html>
